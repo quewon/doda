@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>doda</title>
+  <style type="text/css">
+    html {
+      font-family: 'Times New Roman', serif;
+      font-family: 'Arial', sans-serif;
+      font-size: 11pt;
+      font-smooth: never;
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeSpeed;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid lightgray;
+    }
+    th,td {
+      padding-right: .5rem;
+      padding-left: .5rem;
+    }
+
+    a {
+      display: inline-block;
+      text-decoration: none;
+      cursor: pointer;
+      background: white;
+      padding-left: .5rem;
+      padding-right: .5rem;
+      color: red;
+      user-select: none;
+      line-height: 1.1rem;
+      height: 1.1rem;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    a:hover {
+      background: yellow;
+    }
+    a:active {
+      font-style: italic;
+    }
+    a.disabled {
+      cursor: default;
+      color: lightgray;
+    }
+    a.disabled:hover {
+      background: white;
+    }
+
+    .window {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      z-index: 0;
+    }
+
+    img {
+      image-rendering: pixelated;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .window.folder {
+      background: white;
+    }
+    .content {
+      position: relative;
+      width: 100%;
+      border: 1px solid lightgray;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+/*      border-top: 0;*/
+      box-sizing: border-box;
+      overflow: hidden;
+      resize: both;
+      transform: translateY(-1px);
+      z-index: 0;
+      background: white;
+
+      min-height: 8rem;
+      min-width: fit-content;
+      max-width: 30rem;
+      max-height: 28rem;
+    }
+    .window.curation .content {
+      padding: 0;
+    }
+    .window.image .content {
+      background: transparent;
+    }
+    .window.text .content, .window.info .content {
+      padding: 1rem;
+    }
+    .content_empty {
+      display: inline-block;
+      padding: 1rem;
+      padding-top: 0;
+      padding-bottom: 0;
+      color: gray;
+      font-style: italic;
+    }
+    .window.selected .content {
+      border-color: blue;
+    }
+    .window.delete .content {
+      border-color: red;
+    }
+    .window.delete .label {
+      background: red;
+    }
+    .window.delete .label a {
+      border-color: red;
+    }
+
+    .label {
+      display: flex;
+      justify-content: flex-start;
+      width: 100%;
+      height: 2rem;
+      line-height: 2rem;
+      background: blue;
+      color: white;
+      white-space: nowrap;
+      box-sizing: border-box;
+      user-select: none;
+      cursor: pointer;
+      cursor: move;
+      z-index: 1;
+    }
+    .label > span {
+      margin-left: 1rem;
+      margin-right: 1rem;
+      height: inherit;
+      line-height: inherit;
+      width: 100%;
+    }
+    .label .window_nav {
+      margin: 0;
+      flex-grow: 0;
+      flex-basis: fit-content;
+    }
+    .label .window_nav a {
+      border-right: none;
+    }
+
+    .label a {
+      height: inherit;
+      line-height: inherit;
+      border: 1px solid blue;
+      box-sizing: border-box;
+    }
+
+    .file {
+      display: flex;
+      min-width: 10rem;
+      width: 100%;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    .menubutton {
+      border: 1px solid blue;
+      box-sizing: border-box;
+      cursor: pointer;
+      cursor: context-menu;
+    }
+    .file .menubutton {
+      float: right;
+      border-right: none;
+      border-bottom: none;
+    }
+    .file:last-child .menubutton {
+      border-bottom: 1px solid blue;
+    }
+    .file .filename {
+      display: block;
+      color: black;
+      width: 100%;
+      height: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .contextmenu {
+      display: flex;
+      position: absolute;
+      border: 1px solid blue;
+      background: white;
+    }
+    .contextmenu > div:first-child {
+      flex-shrink: 0;
+      flex-grow: 0;
+      flex-basis: auto;
+    }
+    .contextmenu .menubutton {
+      border-left: none;
+      border-top: none;
+    }
+    .contextmenu .option {
+      display: block;
+      padding-left: 1rem;
+      padding-right: 0;
+    }
+    .contextmenu div span {
+      display: inline-block;
+      width: 100%;
+      text-align: right;
+      padding-left: 1rem;
+      box-sizing: border-box;
+    }
+
+    .pathname a {
+      padding: 0;
+    }
+    .pathname .filler {
+      color: gray;
+    }
+
+    .gone {
+      display: none;
+    }
+
+    .file.curation {
+      min-width: 0;
+      min-height: 0;
+      position: absolute;
+      border: 1px solid lightgray;
+      box-sizing: content-box;
+      cursor: pointer;
+      cursor: move;
+    }
+    .file.curation .file {
+      position: absolute;
+      bottom: 0;
+      min-width: 0;
+/*      width: fit-content;*/
+      width: inherit;
+      transform: translateY(calc(100% + 1px));
+/*      opacity: .8;*/
+    }
+    .file.curation .file a {
+      padding: 0;
+      white-space: normal;
+    }
+
+    .content > .curation {
+      background: white;
+      min-width: 180px;
+      min-height: 200px;
+    }
+  </style>
+  <link rel="stylesheet" type="text/css" href="skin.css">
+</head>
+<body>
+
+</body>
+
+<script type="text/javascript" src="js/howler.core.js"></script>
+<script type="text/javascript" src="js/sound.js"></script>
+<script type="text/javascript" src="js/stuff.js"></script>
+<script type="text/javascript" src="js/system.js"></script>
+<script type="text/javascript" src="files.js"></script>
+<script type="text/javascript">
+  function init() {
+    create_files();
+
+    document.addEventListener("mousemove", function(e) {
+      _mouse.x = e.pageX;
+      _mouse.y = e.pageY;
+
+      let dx = _mouse.x - _mouse.prevx;
+      let dy = _mouse.y - _mouse.prevy;
+
+      if (_dragging) {
+        let x = Number(_dragging.dataset.x1) + dx;
+        let y = Number(_dragging.dataset.y1) + dy;
+
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+
+        _dragging.style.left = x+"px";
+        _dragging.style.top = y+"px";
+
+        _dragging.dataset.x1 = x;
+        _dragging.dataset.y1 = y;
+      }
+
+      _mouse.prevx = _mouse.x;
+      _mouse.prevy = _mouse.y;
+    });
+    document.addEventListener("mouseup", function(e) {
+      if (!_dragging) return;
+
+      if (_dragging.classList.contains("curation")) {
+        let file = _files[_dragging.dataset.id];
+        file.transform.x = Number(_dragging.dataset.x1);
+        file.transform.y = Number(_dragging.dataset.y1);
+      }
+      _dragging = null;
+    });
+    document.addEventListener("blur", function(e) { _dragging = null; });
+    document.addEventListener('click', function(e) {
+      if (!_window_selected) return;
+
+      const inside_window = _window_selected.contains(e.target);
+      if (!inside_window) {
+        _window_selected.classList.remove("selected");
+        _window_selected = null;
+      }
+    });
+  }
+
+  load_sound(init);
+</script>
+
+</html>
