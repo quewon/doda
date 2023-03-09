@@ -1,9 +1,9 @@
 var sfx_files = {
+  "file_move": ["move_low.mp3", "move_high.mp3"],
   "window_open": "lowpip.mp3",
   "window_close": "lowerpip.mp3",
   // "pick_item": ["item_1.mp3", "item_2.mp3"],
 };
-var _queued_sound = [];
 
 function load_sound(onload) {
   for (let sound in sfx_files) {

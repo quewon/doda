@@ -37,13 +37,15 @@ class file {
       {
         name: TEXT("context_newWindow"),
         function: function(e) {
+          sfx("window_open");
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
       {
         name: TEXT("context_info"),
         function: function(e) {
-          _files[this.parentNode.parentNode.dataset.id].openInfo();
+          sfx("window_open");
+          _files[this.parentNode.parentNode.dataset.id].open(null, "info");
         },
       },
       {
@@ -52,15 +54,6 @@ class file {
           let file = _files[this.parentNode.parentNode.dataset.id];
           let photo = file.createPhotograph();
           document.body.appendChild(photo);
-        },
-      },
-      {
-        name: TEXT("context_takeApart"),
-        function: function(e) {
-          let file = _files[this.parentNode.parentNode.dataset.id];
-          let parent = file.folder;
-          file.destroy();
-          parent.open();
         },
       },
     ];
@@ -84,6 +77,7 @@ class file {
       let p = document.createElement("a");
       p.dataset.id = parent.id;
       p.onclick = function(e) {
+        sfx("window_open");
         _files[this.dataset.id].open(null);
         e.stopPropagation();
       };
@@ -155,6 +149,7 @@ class file {
           } else {
             _file_dropping = null;
             // click
+            sfx("window_open");
             _files[this.dataset.id].run(w);
           }
         } else {
@@ -163,6 +158,7 @@ class file {
           let folder = _files[this.dataset.id];
           // _files[w.dataset.id].open(w);
           file.setFolder(folder);
+          sfx("file_move");
           clearGhost();
         }
         this.classList.remove("dropping");
@@ -257,8 +253,6 @@ class file {
   }
 
   createWindow(x, content, to_replace) {
-    sfx("window_open");
-
     var folder = document.createElement("div");
     folder.className = "window "+this.type;
     folder.dataset.id = this.id;
@@ -320,6 +314,7 @@ class file {
         let index = Number(w.dataset.historyIndex) - 1;
         w.dataset.historyIndex = index;
         _files[history[index]].open(w);
+        sfx("file_move");
         e.stopPropagation();
       };
       back.onmousedown = function(e) { e.stopPropagation() };
@@ -331,6 +326,7 @@ class file {
         let index = Number(w.dataset.historyIndex) + 1;
         w.dataset.historyIndex = index;
         _files[history[index]].open(w);
+        sfx("file_move");
         e.stopPropagation();
       };
       forth.onmousedown = function(e) { e.stopPropagation() };
@@ -383,6 +379,7 @@ class file {
         let folder = _files[this.dataset.id];
         if (file.folder != folder) {
           file.setFolder(folder);
+          sfx("file_move");
           clearGhost();
         }
       }
@@ -457,7 +454,9 @@ class file {
 
     var w = this.createWindow(true, content, to_replace);
     w.classList.add("info");
-    w.getElementsByClassName("label")[0].firstElementChild.innerHTML += " [info]";
+    w.getElementsByClassName("label")[0].firstElementChild.innerHTML += " "+TEXT("info");
+
+    w.dataset.format = "info";
 
     return w;
   }
@@ -475,6 +474,8 @@ class file {
     var folder = this.createWindow(x, content, to_replace);
     folder.className = "window folder";
 
+    folder.dataset.format = "folder";
+
     return folder;
   }
 
@@ -484,6 +485,8 @@ class file {
     if (this.content.style.height != "") {
       w.getElementsByClassName("content")[0].style.height = this.content.style.height;
     }
+
+    w.dataset.format = "program";
 
     return w;
   }
@@ -496,6 +499,8 @@ class file {
 
     var w = this.createWindow(true, img);
     w.classList.add("photograph");
+
+    w.dataset.format = "photograph";
 
     return w;
   }
@@ -542,70 +547,92 @@ class file {
     return menu;
   }
 
-  openInfo() {
-    let windows = document.getElementsByClassName("info");
+  refresh(format) {
+    let fw;
+    let windows = document.getElementsByClassName("window");
     for (let i=0; i<windows.length; i++) {
-      if (windows[i].dataset.id == this.id) {
-        to_replace = windows[i];
+      let w = windows[i];
+      if (w.dataset.format == format && w.dataset.id == this.id) {
+        fw = w;
+        break;
       }
     }
+    if (!fw) return;
 
-    let w = this.createInfoWindow();
+    let w;
+    let x = true;
+    if (fw) x = 'X' in fw;
+    switch (format) {
+      case "folder":
+        w = this.createFolder(x, fw);
+        break;
+      case "info":
+        w = this.createInfoWindow(fw);
+        break;
+      case "program":
+        w = this.createContentWindow(x, fw);
+        break;
+    }
+
     document.body.appendChild(w);
-    selectWindow(w);
-  }
-
-  openContent(to_replace, uncloseable) {
-    // if (!to_replace) {
-      let windows = document.getElementsByClassName("window");
-      for (let i=0; i<windows.length; i++) {
-        if (windows[i].classList.contains("folder")) continue;
-        if (windows[i].dataset.id == this.id) {
-          to_replace = windows[i];
-          // selectWindow(windows[i]);
-          // return;
-        }
-      }
-    // }
-
-    let x = !uncloseable;
-    if (to_replace) x = 'X' in to_replace;
-
-    let w = this.createContentWindow(x, to_replace);
-    document.body.appendChild(w);
+    fw.remove();
     selectWindow(w);
 
     return w;
   }
 
-  open(to_replace, uncloseable) {
-    if (!to_replace) {
-      let folders = document.getElementsByClassName("folder");
-      for (let i=0; i<folders.length; i++) {
-        if (folders[i].dataset.id == this.id) {
-          to_replace = folders[i];
-          // selectWindow(folders[i]);
-          // return;
+  open(from_window, format, uncloseable) {
+    format = format || "folder";
+
+    if (format != "folder") {
+      // should not open in the same window
+      from_window = null;
+    } else if (from_window) {
+      if (from_window.dataset.format == "folder") {
+        // are we going to the same page?
+        let hasPage = from_window.dataset.history.includes(this.id+"");
+        if (!hasPage) from_window.dataset.historyIndex = Number(from_window.dataset.historyIndex) + 1;
+      }
+    }
+    if (!from_window) {
+      // if this window is already open then what are we doing??
+      let windows = document.getElementsByClassName("window");
+      for (let i=0; i<windows.length; i++) {
+        let w = windows[i];
+        if (w.dataset.format == format && w.dataset.id == this.id) {
+          from_window = w;
+          break;
         }
       }
     }
-
+    
     let x = !uncloseable;
-    if (to_replace) x = 'X' in to_replace;
 
-    let w = this.createFolder(x, to_replace);
+    let w;
+    switch (format) {
+      case "folder":
+        if (from_window) x = 'X' in from_window;
+        w = this.createFolder(x, from_window);
+        break;
+      case "info":
+        w = this.createInfoWindow(from_window);
+        break;
+      case "program":
+        w = this.createContentWindow(x, from_window);
+        break;
+    }
 
     document.body.appendChild(w);
+
+    if (from_window) from_window.remove();
+
     selectWindow(w);
+
+    return w;
   }
 
-  run(from_window, just_a_refresh) {
-    if ('history' in from_window.dataset) {
-      if (!just_a_refresh) from_window.dataset.historyIndex = Number(from_window.dataset.historyIndex) + 1;
-    } else {
-      from_window = null;
-    }
-    this.open(from_window);
+  run(from_window) {
+    this.open(from_window, "folder", false);
   }
 
   purgeFromHistories() {
@@ -614,7 +641,7 @@ class file {
     for (let i=windows.length-1; i>=0; i--) {
       let w = windows[i];
 
-      if ('history' in w.dataset) {
+      if (w.dataset.format == "folder" && 'history' in w.dataset) {
         let history = w.dataset.history.split(".");
 
         let i = history.indexOf(this.id+"");
@@ -626,7 +653,7 @@ class file {
           if (newindex >= i) newindex = i-1;
 
           w.dataset.historyIndex = newindex;
-          _files[w.dataset.id].run(w, true);
+          _files[w.dataset.id].run(w);
         }
       }
     }
@@ -635,36 +662,34 @@ class file {
   setFolder(file) {
     if (this.folder) {
       this.folder.files.splice(this.folder.files.indexOf(this), 1);
+      // make this disappear from windows that used to have it
+      let windows = document.getElementsByClassName("window");
+      for (let i=windows.length-1; i>=0; i--) {
+        let w = windows[i];
+        if (w.dataset.id == this.folder.id) {
+          _files[w.dataset.id].refresh(w.dataset.format);
+        }
+      }
       this.folder = null;
-    }
-
-    if (file) {
-      file.files.push(this);
     }
 
     this.folder = file;
 
-    // refresh all windows containing this file
-    let files = document.getElementsByClassName("file");
-    for (let i=files.length-1; i>=0; i--) {
-      let f = files[i];
-      if (f.dataset.id == this.id) {
-        let w = f.parentNode.parentNode.parentNode;
-        _files[w.dataset.id].run(w, true);
-      }
-    }
     if (file) {
-      // refresh all windows that should have this file
+      file.files.push(this);
+
+      // make this appear in windows that dont have it
       let windows = document.getElementsByClassName("window");
       for (let i=windows.length-1; i>=0; i--) {
         let w = windows[i];
         if (w.dataset.id == file.id) {
-          _files[w.dataset.id].run(w, true);
+          _files[w.dataset.id].refresh(w.dataset.format);
         }
       }
     }
 
     this.purgeFromHistories();
+    this.refresh("info");
   }
 
   destroy(destroyChildren) {
@@ -698,16 +723,17 @@ class program extends file {
       {
         name: TEXT("context_analyze"),
         function: function(e) {
+          sfx("window_open");
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
       {
         name: TEXT("context_takeApart"),
         function: function(e) {
+          sfx("window_close");
           let file = _files[this.parentNode.parentNode.dataset.id];
           let parent = file.folder;
           file.destroy();
-          parent.open();
         },
       },
     ];
@@ -719,9 +745,8 @@ class program extends file {
     return div;
   }
 
-  run(fw, r) {
-    if (!r) fw = null;
-    this.openContent(fw);
+  run(fw) {
+    this.open(fw, "program");
   }
 }
 
@@ -789,9 +814,7 @@ class curation extends program {
     return div;
   }
 
-  run(fw, r) {
-    if (!r) fw = null;
-
+  run(fw) {
     this.content = document.createElement("div");
     this.content.className = "curation";
     let max = { width:0, height:0 };
@@ -802,11 +825,18 @@ class curation extends program {
       max.width = Math.max(child.transform.x + child.transform.width, max.width);
       max.height = Math.max(child.transform.y + child.transform.height, max.height);
     }
+    // this.content.style.width = max.width+"px";
+    // this.content.style.height = max.height+"px";
+
+    let w = this.open(fw, "program");
+
     this.content.style.width = max.width+"px";
     this.content.style.height = max.height+"px";
 
-    let w = this.openContent(fw);
-    if (fw) w.getElementsByClassName("window_nav")[0].remove();
+    // if (fw) {
+    //   let nav = w.getElementsByClassName("window_nav");
+    //   if (nav.length>0) nav[0].remove();
+    // }
   }
 }
 
@@ -823,6 +853,7 @@ class person extends curation {
       {
         name: TEXT("context_analyze"),
         function: function(e) {
+          sfx("window_open");
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
@@ -845,5 +876,16 @@ class machine extends curation {
         }
       });
     }
+  }
+}
+
+class placemachine extends machine {
+  constructor(p) {
+    super(p);
+    this.type = "folder";
+  }
+
+  run(fw) {
+    this.open(fw, "folder", false);
   }
 }

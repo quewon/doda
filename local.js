@@ -20,7 +20,7 @@ var _DIALOGUE = {
 };
 
 var _TEXT = {
-  language: "eng",
+  language: "kor",
 
   // files
   "world": {
@@ -123,6 +123,10 @@ var _TEXT = {
     kor: "사진 찍기"
   },
 
+  "info": {
+    eng: "[info]",
+    kor: "[정보]"
+  },
   "info_name": {
     eng: "name",
     kor: "파일명"

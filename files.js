@@ -7,7 +7,7 @@ function create_files() {
 
   new machine({ name:TEXT("doda's seeing eye"), folder:star });
   let city = new file({ name:TEXT("city"), folder:star });
-  let ship = new file({ name:TEXT("ship"), folder:star });
+  let ship = new placemachine({ name:TEXT("ship"), folder:star });
   let you = new person({ name:"doda", folder:ship, image:"guy3.png" });
   let peep = new person({ name:"peep", folder:ship, image:"guy1.png" });
 
@@ -21,5 +21,5 @@ function create_files() {
   let small_pizza_box = new file({ name:TEXT("tiny pizza box"), folder:pizza_box });
   new image({ name:TEXT("pepperoni pizza slice"), folder:small_pizza_box, image:"pizza.png" });
 
-  star.open(null, true);
+  star.open(null, null, true);
 }
