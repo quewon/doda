@@ -3,6 +3,7 @@ var sfx_files = {
   "window_close": "lowerpip.mp3",
   // "pick_item": ["item_1.mp3", "item_2.mp3"],
 };
+var _queued_sound = [];
 
 function load_sound(onload) {
   for (let sound in sfx_files) {
@@ -27,10 +28,13 @@ function load_sound(onload) {
 }
 
 function sfx(name) {
+  let s;
   if (Array.isArray(sfx_files[name])) {
-    sfx_files[name][Math.random() * sfx_files[name].length | 0].play();
+    s = sfx_files[name][Math.random() * sfx_files[name].length | 0];
   } else {
-    sfx_files[name].stop();
-    sfx_files[name].play();
+    s = sfx_files[name];
   }
+
+  s.stop();
+  s.play();
 }

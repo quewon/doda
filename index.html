@@ -25,6 +25,16 @@
       padding-right: .5rem;
       padding-left: .5rem;
     }
+    th {
+      border-color: white;
+      background: lightgray;
+      color: white;
+      font-weight: normal;
+    }
+
+    span {
+      word-break: keep-all;
+    }
 
     a {
       display: inline-block;
@@ -55,8 +65,8 @@
     }
 
     .window {
-      display: flex;
-      flex-direction: column;
+/*      display: flex;*/
+/*      flex-direction: column;*/
       position: absolute;
       z-index: 0;
     }
@@ -84,9 +94,8 @@
       transform: translateY(-1px);
       z-index: 0;
       background: white;
-
+      min-width: calc(10rem + 2px);
       min-height: 8rem;
-      min-width: fit-content;
       max-width: 30rem;
       max-height: 28rem;
     }
@@ -94,7 +103,10 @@
       padding: 0;
     }
     .window.image .content {
+      padding: 0;
       background: transparent;
+/*      height: 28rem;*/
+/*      width: 30rem;*/
     }
     .window.text .content, .window.info .content {
       padding: 1rem;
@@ -164,6 +176,10 @@
       width: 100%;
       box-sizing: border-box;
       user-select: none;
+    }
+    .filename.dropping {
+      background: orange !important;
+      color: white !important;
     }
     .menubutton {
       border: 1px solid blue;
@@ -255,6 +271,19 @@
       min-width: 180px;
       min-height: 200px;
     }
+
+    .ghost {
+      position: absolute;
+      pointer-events: none;
+      font-style: italic;
+    }
+    .filename.droppable {
+      background: inherit;
+      color: orange;
+    }
+    .content.droppable {
+      border-color: orange !important;
+    }
   </style>
   <link rel="stylesheet" type="text/css" href="skin.css">
 </head>
@@ -263,6 +292,7 @@
 </body>
 
 <script type="text/javascript" src="js/howler.core.js"></script>
+<script type="text/javascript" src="local.js"></script>
 <script type="text/javascript" src="js/sound.js"></script>
 <script type="text/javascript" src="js/stuff.js"></script>
 <script type="text/javascript" src="js/system.js"></script>
@@ -290,23 +320,32 @@
 
         _dragging.dataset.x1 = x;
         _dragging.dataset.y1 = y;
+
+        if (_file_dropping) {
+          // console.log(e.target);
+        }
       }
 
       _mouse.prevx = _mouse.x;
       _mouse.prevy = _mouse.y;
     });
     document.addEventListener("mouseup", function(e) {
+      if (_file_dropping && e.target.parentNode == _file_dropping) return;
+
       if (!_dragging) return;
 
       if (_dragging.classList.contains("curation")) {
         let file = _files[_dragging.dataset.id];
         file.transform.x = Number(_dragging.dataset.x1);
         file.transform.y = Number(_dragging.dataset.y1);
+      } else if (_dragging.classList.contains("ghost")) {
+        clearGhost();
       }
+
       _dragging = null;
     });
     document.addEventListener("blur", function(e) { _dragging = null; });
-    document.addEventListener('click', function(e) {
+    document.addEventListener("click", function(e) {
       if (!_window_selected) return;
 
       const inside_window = _window_selected.contains(e.target);
@@ -318,6 +357,8 @@
   }
 
   load_sound(init);
+
+  document.title = TEXT("doda");
 </script>
 
 </html>

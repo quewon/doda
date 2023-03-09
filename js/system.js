@@ -2,6 +2,7 @@ var _files = [];
 var _mouse = { x:50, y:50, prevx:50, prevy:50 };
 var _window_selected;
 var _dragging;
+var _file_dropping;
 
 function selectWindow(w) {
   if (_window_selected) {
@@ -11,6 +12,13 @@ function selectWindow(w) {
   _window_selected = w;
   w.classList.add("selected");
   w.parentNode.appendChild(w);
+}
+
+function clearGhost() {
+  _file_dropping.classList.remove("dropping");
+  _file_dropping = null;
+  document.body.removeChild(_dragging);
+  _dragging = null;
 }
 
 class file {
@@ -27,17 +35,34 @@ class file {
 
     this.contextMenu = [
       {
-        name: "open in new window",
+        name: TEXT("context_newWindow"),
         function: function(e) {
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
       {
-        name: "get info",
+        name: TEXT("context_info"),
         function: function(e) {
           _files[this.parentNode.parentNode.dataset.id].openInfo();
         },
-      }
+      },
+      {
+        name: TEXT("context_photograph"),
+        function: function(e) {
+          let file = _files[this.parentNode.parentNode.dataset.id];
+          let photo = file.createPhotograph();
+          document.body.appendChild(photo);
+        },
+      },
+      {
+        name: TEXT("context_takeApart"),
+        function: function(e) {
+          let file = _files[this.parentNode.parentNode.dataset.id];
+          let parent = file.folder;
+          file.destroy();
+          parent.open();
+        },
+      },
     ];
 
     // for curations
@@ -66,10 +91,15 @@ class file {
 
       let filler = document.createElement("span");
       filler.className = "filler";
-      filler.textContent = " of ";
+      filler.textContent = TEXT("path_connector");
 
-      s.appendChild(filler);
-      s.appendChild(p);
+      if (TEXT("path_direction") == -1) {
+        s.appendChild(filler);
+        s.appendChild(p); 
+      } else {
+        s.prepend(filler);
+        s.prepend(p);
+      }
 
       parent = parent.folder;
     }
@@ -80,20 +110,71 @@ class file {
   createFile(noContext) {
     let file = document.createElement("div");
     file.className = "file";
+    file.dataset.id = this.id;
 
     let label = document.createElement("a");
     label.className = "filename";
     label.textContent = this.name;
     label.dataset.id = this.id;
+    label.addEventListener("mousedown", function(e) {
+      _file_dropping = this;
+      e.stopPropagation();
+    });
+    label.addEventListener("mouseenter", function(e) {
+      if (!_file_dropping) return;
+      if (_file_dropping.dataset.id == this.dataset.id) return;
+
+      this.classList.add("droppable");
+    });
+    label.addEventListener("mouseleave", function(e) {
+      if (!_file_dropping) return;
+
+      if (!_dragging && _file_dropping == this) {
+        this.classList.add("dropping");
+        // create a ghost of this file that you can drag around!!
+        let ghost = document.createElement("span");
+        ghost.className = "ghost";
+        ghost.textContent = _files[this.dataset.id].name;
+        ghost.dataset.id = this.dataset.id;
+        ghost.style.left = _mouse.x+"px";
+        ghost.style.top = _mouse.y+"px";
+        ghost.dataset.x1 = _mouse.x;
+        ghost.dataset.y1 = _mouse.y;
+        document.body.appendChild(ghost);
+        _dragging = ghost;
+      } else {
+        this.classList.remove("droppable");
+      }
+    });
+    label.addEventListener("mouseup", function(e) {
+      if (_file_dropping) {
+        let w = this.parentNode.parentNode.parentNode.parentNode;
+        if (_file_dropping.dataset.id == this.dataset.id) {
+          if (_dragging) {
+            clearGhost();
+          } else {
+            _file_dropping = null;
+            // click
+            _files[this.dataset.id].run(w);
+          }
+        } else {
+          // a file is trying to enter this folder
+          let file = _files[_file_dropping.dataset.id];
+          let folder = _files[this.dataset.id];
+          // _files[w.dataset.id].open(w);
+          file.setFolder(folder);
+          clearGhost();
+        }
+        this.classList.remove("dropping");
+        this.classList.remove("droppable");
+      }
+      e.stopPropagation();
+    });
     label.addEventListener("click", function(e) {
-      let w = this.parentNode.parentNode.parentNode;
-      _files[this.dataset.id].run(w);
       e.stopPropagation();
     });
 
     file.appendChild(label);
-
-    file.addEventListener("mousedown", function(e) { e.stopPropagation(); });
 
     if (!noContext) {
       let menu = document.createElement("a");
@@ -119,10 +200,12 @@ class file {
     return file;
   }
 
-  createCurationFileBase() {
+  createCurationFileBase(content, defaultWidth, defaultHeight) {
     let div = document.createElement("div");
     div.className = "file curation";
     div.style.background = "gray";
+
+    if (content) div.appendChild(content);
 
     // let file = this.createFile(true);
     // file.classList.add("gone");
@@ -135,11 +218,12 @@ class file {
     // div.appendChild(file);
 
     if (!this.transform.width || !this.transform.height) {
-      div.style.width = "5rem";
-      div.style.height = "5rem";
+      div.style.width = defaultWidth || "5rem";
+      div.style.height = defaultHeight || "5rem";
       document.body.appendChild(div);
       let rect = div.getBoundingClientRect();
       document.body.removeChild(div);
+
       this.transform.width = rect.width;
       this.transform.height = rect.height;
       this.transform.x = Math.random() * (300 - rect.width);
@@ -161,7 +245,6 @@ class file {
       _dragging.dataset.y1 = transform.y;
 
       this.parentNode.appendChild(this);
-      file.setFolder(file.folder);
 
       // e.stopPropagation();
     });
@@ -274,13 +357,46 @@ class file {
 
     folder.appendChild(label);
 
-    folder.appendChild(content);
+    let contentwindow = document.createElement("div");
+    contentwindow.dataset.id = this.id;
+    contentwindow.className = "content";
+    contentwindow.appendChild(content);
+    contentwindow.addEventListener("mouseover", function(e) {
+      if (!_file_dropping) return;
+      if (_file_dropping.dataset.id == this.dataset.id) return;
+
+      if (e.target == this) {
+        this.classList.add("droppable");
+      } else {
+        this.classList.remove("droppable");
+      }
+    });
+    contentwindow.addEventListener("mouseleave", function(e) {
+      if (!_file_dropping) return;
+      this.classList.remove("droppable");
+    });
+    contentwindow.addEventListener("mouseup", function(e) {
+      if (!_file_dropping) return;
+
+      if (_file_dropping.dataset.id != this.dataset.id) {
+        let file = _files[_file_dropping.dataset.id];
+        let folder = _files[this.dataset.id];
+        if (file.folder != folder) {
+          file.setFolder(folder);
+          clearGhost();
+        }
+      }
+
+      this.classList.remove("droppable");
+    });
+
+    folder.appendChild(contentwindow);
 
     if (!to_replace) {
       folder.style.top = _mouse.y+"px";
       folder.style.left = _mouse.x+"px";
     } else if (to_replace) {
-      to_replace.remove();
+      document.body.removeChild(to_replace);
       folder.style.top = to_replace.style.top;
       folder.style.left = to_replace.style.left;
       content.style.width = to_replace.lastElementChild.style.width;
@@ -306,21 +422,19 @@ class file {
   }
 
   createInfoWindow(to_replace) {
-    var content = document.createElement("div");
-    content.className = "content";
-    var table = document.createElement("table");
+    var content = document.createElement("table");
 
     let info = [
       {
-        category: "name",
+        category: TEXT("info_name"),
         data: this.name
       },
       {
-        category: "path",
+        category: TEXT("info_path"),
         data: this.getPathnameSpan()
       },
       {
-        category: "accessibility level",
+        category: TEXT("info_accessLevel"),
         data: this.accessLevel
       }
     ];
@@ -338,10 +452,8 @@ class file {
 
       row.appendChild(header);
       row.appendChild(data);
-      table.appendChild(row);
+      content.appendChild(row);
     }
-
-    content.appendChild(table);
 
     var w = this.createWindow(true, content, to_replace);
     w.classList.add("info");
@@ -353,13 +465,12 @@ class file {
   createFolder(x, to_replace) {
     var content = document.createElement("div");
     if (this.files.length == 0) {
-      content.innerHTML = "<span class='content_empty'>this folder is empty...</span>";
+      content.innerHTML = "<span class='content_empty'>"+TEXT("empty_folder")+"</span>";
     } else {
       for (let child of this.files) {
         content.appendChild(child.createFile());
       }
     }
-    content.className = "content";
 
     var folder = this.createWindow(x, content, to_replace);
     folder.className = "window folder";
@@ -368,11 +479,23 @@ class file {
   }
 
   createContentWindow(x, to_replace) {
-    var content = document.createElement("div");
-    content.className = "content";
-    content.appendChild(this.content);
+    var w = this.createWindow(x, this.content, to_replace);
 
-    var w = this.createWindow(x, content, to_replace);
+    if (this.content.style.height != "") {
+      w.getElementsByClassName("content")[0].style.height = this.content.style.height;
+    }
+
+    return w;
+  }
+
+  createPhotograph() {
+    console.log("click");
+
+    let img = document.createElement("img");
+    img.src = "imgs/pizza.png";
+
+    var w = this.createWindow(true, img);
+    w.classList.add("photograph");
 
     return w;
   }
@@ -395,7 +518,7 @@ class file {
 
     var d2 = document.createElement("div");
     let span = document.createElement("span");
-    span.textContent = this.name+" menu";
+    span.textContent = this.name+" "+TEXT("context_menu");
     d2.appendChild(span);
 
     var options = this.contextMenu;
@@ -451,6 +574,8 @@ class file {
     let w = this.createContentWindow(x, to_replace);
     document.body.appendChild(w);
     selectWindow(w);
+
+    return w;
   }
 
   open(to_replace, uncloseable) {
@@ -474,9 +599,9 @@ class file {
     selectWindow(w);
   }
 
-  run(from_window) {
+  run(from_window, just_a_refresh) {
     if ('history' in from_window.dataset) {
-      from_window.dataset.historyIndex = Number(from_window.dataset.historyIndex) + 1;
+      if (!just_a_refresh) from_window.dataset.historyIndex = Number(from_window.dataset.historyIndex) + 1;
     } else {
       from_window = null;
     }
@@ -486,7 +611,9 @@ class file {
   purgeFromHistories() {
     // edit windows whose histories may contain this file
     let windows = document.getElementsByClassName("window");
-    for (let w of windows) {
+    for (let i=windows.length-1; i>=0; i--) {
+      let w = windows[i];
+
       if ('history' in w.dataset) {
         let history = w.dataset.history.split(".");
 
@@ -499,7 +626,7 @@ class file {
           if (newindex >= i) newindex = i-1;
 
           w.dataset.historyIndex = newindex;
-          _files[w.dataset.id].open();
+          _files[w.dataset.id].run(w, true);
         }
       }
     }
@@ -509,7 +636,6 @@ class file {
     if (this.folder) {
       this.folder.files.splice(this.folder.files.indexOf(this), 1);
       this.folder = null;
-      this.purgeFromHistories();
     }
 
     if (file) {
@@ -517,6 +643,28 @@ class file {
     }
 
     this.folder = file;
+
+    // refresh all windows containing this file
+    let files = document.getElementsByClassName("file");
+    for (let i=files.length-1; i>=0; i--) {
+      let f = files[i];
+      if (f.dataset.id == this.id) {
+        let w = f.parentNode.parentNode.parentNode;
+        _files[w.dataset.id].run(w, true);
+      }
+    }
+    if (file) {
+      // refresh all windows that should have this file
+      let windows = document.getElementsByClassName("window");
+      for (let i=windows.length-1; i>=0; i--) {
+        let w = windows[i];
+        if (w.dataset.id == file.id) {
+          _files[w.dataset.id].run(w, true);
+        }
+      }
+    }
+
+    this.purgeFromHistories();
   }
 
   destroy(destroyChildren) {
@@ -548,13 +696,13 @@ class program extends file {
     super(p);
     this.contextMenu = [
       {
-        name: "analyze",
+        name: TEXT("context_analyze"),
         function: function(e) {
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
       {
-        name: "take apart",
+        name: TEXT("context_takeApart"),
         function: function(e) {
           let file = _files[this.parentNode.parentNode.dataset.id];
           let parent = file.folder;
@@ -571,8 +719,9 @@ class program extends file {
     return div;
   }
 
-  run(fw) {
-    this.openContent();
+  run(fw, r) {
+    if (!r) fw = null;
+    this.openContent(fw);
   }
 }
 
@@ -586,13 +735,12 @@ class image extends program {
   }
 
   createCurationFile() {
-    let div = this.createCurationFileBase();
-    div.style.background = "transparent";
-
     let img = document.createElement("img");
     img.src = this.image;
     img.draggable = false;
-    div.prepend(img);
+
+    let div = this.createCurationFileBase(img, null, "fit-content");
+    div.style.background = "transparent";
 
     return div;
   }
@@ -610,7 +758,7 @@ class text extends program {
 
   createCurationFile() {
     let div = this.createCurationFileBase();
-    div.style.background = "transparent";
+    div.style.background = "inherit";
 
     let span = document.createElement("span");
     span.textContent = this.text;
@@ -641,7 +789,9 @@ class curation extends program {
     return div;
   }
 
-  run(fw) {
+  run(fw, r) {
+    if (!r) fw = null;
+
     this.content = document.createElement("div");
     this.content.className = "curation";
     let max = { width:0, height:0 };
@@ -652,37 +802,30 @@ class curation extends program {
       max.width = Math.max(child.transform.x + child.transform.width, max.width);
       max.height = Math.max(child.transform.y + child.transform.height, max.height);
     }
-    this.content.style.width = (max.width)+"px";
-    this.content.style.height = (max.height)+"px";
+    this.content.style.width = max.width+"px";
+    this.content.style.height = max.height+"px";
 
-    this.openContent();
+    let w = this.openContent(fw);
+    if (fw) w.getElementsByClassName("window_nav")[0].remove();
   }
 }
 
 class person extends curation {
   constructor(p) {
-    p.files = [
-      new image({ name:"body", image:"pizza.png" }),
-      new text({ name:"words", text:"hi!!! my name is "+name })
-    ];
     super(p);
+    this.dialogueTag = p.name;
+    this.name = TEXT(p.name);
+
+    let body = new image({ name:TEXT("person_body"), folder:this, image:p.image || ["guy1.png", "guy2.png", "guy3.png"][Math.random() * 3 | 0] });
+    let dialogue = new text({ name:TEXT("person_words"), folder:this, text:DIALOGUE(this) });
+
     this.contextMenu = [
       {
-        name: "analyze",
+        name: TEXT("context_analyze"),
         function: function(e) {
           _files[this.parentNode.parentNode.dataset.id].open(null);
         },
       },
-      {
-        name: "photograph",
-        function: function(e) {
-          let file = _files[this.parentNode.parentNode.dataset.id];
-          console.log("click");
-          // changes their photo
-          file.content = "<img src='imgs/"+file.image+"'></img>";
-          file.openContent();
-        },
-      }
     ];
   }
 }
@@ -693,7 +836,7 @@ class machine extends curation {
     this.creator = p.creator || "doda";
     if (this.creator == "doda") {
       this.contextMenu.push({
-        name: "rename",
+        name: TEXT("context_rename"),
         function: function(e) {
           let file = _files[this.parentNode.parentNode.dataset.id];
           file.name = "debug";
@@ -703,13 +846,4 @@ class machine extends curation {
       });
     }
   }
-
-  // run(fw) {
-  //   if ('history' in fw.dataset) {
-  //     fw.dataset.historyIndex = Number(fw.dataset.historyIndex) + 1;
-  //   } else {
-  //     fw = null;
-  //   }
-  //   this.open(fw);
-  // }
 }
