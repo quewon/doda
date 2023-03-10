@@ -4,6 +4,10 @@ var _DIALOGUE = {
       {
         eng: "the name's doda",
         kor: "내 이름은 달이"
+      },
+      {
+        eng: "nice to meetcha",
+        kor: "만나서 반가워"
       }
     ],
     index: -1
@@ -13,6 +17,10 @@ var _DIALOGUE = {
       {
         eng: "there's pizza in the freezer",
         kor: "냉동고에 피자 있다"
+      },
+      {
+        eng: "...",
+        kor: "..."
       }
     ],
     index: -1
@@ -20,7 +28,7 @@ var _DIALOGUE = {
 };
 
 var _TEXT = {
-  language: "kor",
+  language: "eng",
 
   // files
   "world": {
@@ -154,6 +162,8 @@ function DIALOGUE(file) {
   let d = _DIALOGUE[file.dialogueTag];
   d.index++;
   if (d.index >= d.lines.length) d.index = 0;
+
+  console.log(d.lines[d.index][_TEXT.language]);
 
   return d.lines[d.index][_TEXT.language];
 }

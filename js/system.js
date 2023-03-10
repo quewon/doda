@@ -19,6 +19,7 @@ function clearGhost() {
   _file_dropping = null;
   document.body.removeChild(_dragging);
   _dragging = null;
+  document.body.classList.remove("grabbing");
 }
 
 class file {
@@ -38,22 +39,22 @@ class file {
         name: TEXT("context_newWindow"),
         function: function(e) {
           sfx("window_open");
-          _files[this.parentNode.parentNode.dataset.id].open(null);
+          _files[this.dataset.id].open(null);
+        },
+      },
+      {
+        name: TEXT("context_photograph"),
+        function: function(e) {
+          let file = _files[this.dataset.id];
+          let photo = file.createPhotograph();
+          document.body.appendChild(photo);
         },
       },
       {
         name: TEXT("context_info"),
         function: function(e) {
           sfx("window_open");
-          _files[this.parentNode.parentNode.dataset.id].open(null, "info");
-        },
-      },
-      {
-        name: TEXT("context_photograph"),
-        function: function(e) {
-          let file = _files[this.parentNode.parentNode.dataset.id];
-          let photo = file.createPhotograph();
-          document.body.appendChild(photo);
+          _files[this.dataset.id].open(null, "info");
         },
       },
     ];
@@ -117,6 +118,7 @@ class file {
     label.addEventListener("mouseenter", function(e) {
       if (!_file_dropping) return;
       if (_file_dropping.dataset.id == this.dataset.id) return;
+      if (_files[this.dataset.id].isDescendantOf(_files[_file_dropping.dataset.id])) return;
 
       this.classList.add("droppable");
     });
@@ -134,6 +136,7 @@ class file {
         ghost.style.top = _mouse.y+"px";
         ghost.dataset.x1 = _mouse.x;
         ghost.dataset.y1 = _mouse.y;
+        document.body.classList.add("grabbing");
         document.body.appendChild(ghost);
         _dragging = ghost;
       } else {
@@ -142,27 +145,28 @@ class file {
     });
     label.addEventListener("mouseup", function(e) {
       if (_file_dropping) {
-        let w = this.parentNode.parentNode.parentNode.parentNode;
         if (_file_dropping.dataset.id == this.dataset.id) {
-          if (_dragging) {
-            clearGhost();
-          } else {
-            _file_dropping = null;
+          if (!_dragging) {
             // click
+            _file_dropping = null;
             sfx("window_open");
+            let w = this.parentNode.parentNode.parentNode.parentNode;
             _files[this.dataset.id].run(w);
+          } else {
+            clearGhost();
           }
         } else {
-          // a file is trying to enter this folder
-          let file = _files[_file_dropping.dataset.id];
-          let folder = _files[this.dataset.id];
-          // _files[w.dataset.id].open(w);
-          file.setFolder(folder);
-          sfx("file_move");
+          if (this.classList.contains("droppable")) {
+            // a file is trying to enter this folder
+            let file = _files[_file_dropping.dataset.id];
+            let folder = _files[this.dataset.id];
+            // _files[w.dataset.id].open(w);
+            file.setFolder(folder);
+            sfx("file_move");
+            this.classList.remove("droppable");
+          }
           clearGhost();
         }
-        this.classList.remove("dropping");
-        this.classList.remove("droppable");
       }
       e.stopPropagation();
     });
@@ -269,6 +273,19 @@ class file {
       _dragging.dataset.y1 = rect.top;
     });
 
+    label.addEventListener("mousedown", function(e) {
+      document.body.classList.add("grabbing");
+    });
+    label.addEventListener("mouseleave", function(e) {
+      if (_dragging==this.parentNode)
+        document.body.classList.remove("grabbing");
+    });
+
+    label.addEventListener("mouseup", function(e) {
+      if (_dragging==this.parentNode)
+        document.body.classList.remove("grabbing");
+    });
+
     let b, f;
     if (to_replace) {
       let history = to_replace.dataset.history.split(".");
@@ -360,6 +377,7 @@ class file {
     contentwindow.addEventListener("mouseover", function(e) {
       if (!_file_dropping) return;
       if (_file_dropping.dataset.id == this.dataset.id) return;
+      if (_files[this.dataset.id].isDescendantOf(_files[_file_dropping.dataset.id])) return;
 
       if (e.target == this) {
         this.classList.add("droppable");
@@ -374,7 +392,7 @@ class file {
     contentwindow.addEventListener("mouseup", function(e) {
       if (!_file_dropping) return;
 
-      if (_file_dropping.dataset.id != this.dataset.id) {
+      if (this.classList.contains("droppable")) {
         let file = _files[_file_dropping.dataset.id];
         let folder = _files[this.dataset.id];
         if (file.folder != folder) {
@@ -382,9 +400,8 @@ class file {
           sfx("file_move");
           clearGhost();
         }
+        this.classList.remove("droppable");
       }
-
-      this.classList.remove("droppable");
     });
 
     folder.appendChild(contentwindow);
@@ -531,6 +548,7 @@ class file {
       let a = document.createElement("a");
       a.className = "option";
       a.textContent = option.name;
+      a.dataset.id = this.id;
       a.addEventListener("click", option.function);
       a.addEventListener("click", function(e) {
         this.parentNode.parentNode.remove();
@@ -587,12 +605,6 @@ class file {
     if (format != "folder") {
       // should not open in the same window
       from_window = null;
-    } else if (from_window) {
-      if (from_window.dataset.format == "folder") {
-        // are we going to the same page?
-        let hasPage = from_window.dataset.history.includes(this.id+"");
-        if (!hasPage) from_window.dataset.historyIndex = Number(from_window.dataset.historyIndex) + 1;
-      }
     }
     if (!from_window) {
       // if this window is already open then what are we doing??
@@ -611,7 +623,16 @@ class file {
     let w;
     switch (format) {
       case "folder":
-        if (from_window) x = 'X' in from_window;
+        if (from_window) {
+          x = 'X' in from_window;
+          let history = from_window.dataset.history.split(".");
+          let index = Number(from_window.dataset.historyIndex);
+
+          if (history[index] != this.id) {
+            from_window.dataset.historyIndex = index + 1;
+          }
+        }
+
         w = this.createFolder(x, from_window);
         break;
       case "info":
@@ -714,6 +735,21 @@ class file {
 
     _files[this.id] = null;
   }
+
+  isDescendantOf(file) {
+    if (this.folder == file) return true;
+
+    let filefound = false;
+    let parent = this.folder;
+    while (parent != null) {
+      parent = parent.folder;
+      if (parent == file) {
+        filefound = true;
+        break;
+      }
+    }
+    return filefound;
+  }
 }
 
 class program extends file {
@@ -724,16 +760,23 @@ class program extends file {
         name: TEXT("context_analyze"),
         function: function(e) {
           sfx("window_open");
-          _files[this.parentNode.parentNode.dataset.id].open(null);
+          _files[this.dataset.id].open(null);
         },
       },
       {
         name: TEXT("context_takeApart"),
         function: function(e) {
           sfx("window_close");
-          let file = _files[this.parentNode.parentNode.dataset.id];
+          let file = _files[this.dataset.id];
           let parent = file.folder;
           file.destroy();
+        },
+      },
+      {
+        name: TEXT("context_info"),
+        function: function(e) {
+          sfx("window_open");
+          _files[this.dataset.id].open(null, "info");
         },
       },
     ];
@@ -797,6 +840,30 @@ class text extends program {
   }
 }
 
+class dialogue extends text {
+  constructor(p) {
+    super(p);
+  }
+
+  createCurationFile() {
+    this.text = DIALOGUE(this.folder);
+    this.content.textContent = this.text;
+
+    let div = this.createCurationFileBase();
+    div.style.background = "inherit";
+
+    let span = document.createElement("span");
+    span.textContent = this.text;
+    div.prepend(span);
+
+    div.style.minWidth = div.style.width;
+    div.style.width = "fit-content";
+    div.style.height = "fit-content";
+
+    return div;
+  }
+}
+
 class curation extends program {
   constructor(p) {
     p.files=p.files||[];
@@ -814,6 +881,42 @@ class curation extends program {
     return div;
   }
 
+  refresh(format) {
+    let fw;
+    let windows = document.getElementsByClassName("window");
+    for (let i=0; i<windows.length; i++) {
+      let w = windows[i];
+      if (w.dataset.format == format && w.dataset.id == this.id) {
+        fw = w;
+        break;
+      }
+    }
+    if (!fw) return;
+
+    if (format == "program") {
+      this.run(fw);
+      return;
+    }
+
+    let w;
+    let x = true;
+    if (fw) x = 'X' in fw;
+    switch (format) {
+      case "folder":
+        w = this.createFolder(x, fw);
+        break;
+      case "info":
+        w = this.createInfoWindow(fw);
+        break;
+    }
+
+    document.body.appendChild(w);
+    fw.remove();
+    selectWindow(w);
+
+    return w;
+  }
+
   run(fw) {
     this.content = document.createElement("div");
     this.content.className = "curation";
@@ -825,18 +928,11 @@ class curation extends program {
       max.width = Math.max(child.transform.x + child.transform.width, max.width);
       max.height = Math.max(child.transform.y + child.transform.height, max.height);
     }
-    // this.content.style.width = max.width+"px";
-    // this.content.style.height = max.height+"px";
 
     let w = this.open(fw, "program");
 
     this.content.style.width = max.width+"px";
     this.content.style.height = max.height+"px";
-
-    // if (fw) {
-    //   let nav = w.getElementsByClassName("window_nav");
-    //   if (nav.length>0) nav[0].remove();
-    // }
   }
 }
 
@@ -847,17 +943,42 @@ class person extends curation {
     this.name = TEXT(p.name);
 
     let body = new image({ name:TEXT("person_body"), folder:this, image:p.image || ["guy1.png", "guy2.png", "guy3.png"][Math.random() * 3 | 0] });
-    let dialogue = new text({ name:TEXT("person_words"), folder:this, text:DIALOGUE(this) });
+    let d = new dialogue({ name:TEXT("person_words"), folder:this });
 
     this.contextMenu = [
       {
         name: TEXT("context_analyze"),
         function: function(e) {
           sfx("window_open");
-          _files[this.parentNode.parentNode.dataset.id].open(null);
+          _files[this.dataset.id].open(null);
+        },
+      },
+      {
+        name: TEXT("context_info"),
+        function: function(e) {
+          sfx("window_open");
+          _files[this.dataset.id].open(null, "info");
         },
       },
     ];
+  }
+
+  run(fw) {
+    this.content = document.createElement("div");
+    this.content.className = "curation";
+    let max = { width:0, height:0 };
+    for (let child of this.files) {
+      let f = child.createCurationFile();
+      this.content.appendChild(f);
+
+      max.width = Math.max(child.transform.x + child.transform.width, max.width);
+      max.height = Math.max(child.transform.y + child.transform.height, max.height);
+    }
+
+    let w = this.open(fw, "program");
+
+    this.content.style.width = max.width+"px";
+    this.content.style.height = max.height+"px";
   }
 }
 
@@ -869,7 +990,7 @@ class machine extends curation {
       this.contextMenu.push({
         name: TEXT("context_rename"),
         function: function(e) {
-          let file = _files[this.parentNode.parentNode.dataset.id];
+          let file = _files[this.dataset.id];
           file.name = "debug";
           file.folder.open();
           console.log("rename it...");

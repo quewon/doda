@@ -18,8 +18,5 @@ function create_files() {
   new image({ name:TEXT("pepperoni pizza slice"), folder:pizza_box, image:"pizza.png" });
   new image({ name:TEXT("pepperoni pizza slice"), folder:pizza_box, image:"pizza.png" });
 
-  let small_pizza_box = new file({ name:TEXT("tiny pizza box"), folder:pizza_box });
-  new image({ name:TEXT("pepperoni pizza slice"), folder:small_pizza_box, image:"pizza.png" });
-
   star.open(null, null, true);
 }

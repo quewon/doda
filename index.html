@@ -15,6 +15,19 @@
       text-rendering: optimizeSpeed;
     }
 
+    .grabbing {
+      cursor: grabbing;
+    }
+    .grabbing * {
+      cursor: grabbing;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     table {
       border-collapse: collapse;
     }
@@ -133,6 +146,7 @@
     }
 
     .label {
+      position: relative;
       display: flex;
       justify-content: flex-start;
       width: 100%;
@@ -144,7 +158,7 @@
       box-sizing: border-box;
       user-select: none;
       cursor: pointer;
-      cursor: move;
+      cursor: grab;
       z-index: 1;
     }
     .label > span {
@@ -284,6 +298,10 @@
     .content.droppable {
       border-color: orange !important;
     }
+
+    .grabbing {
+      cursor: grabbing !important;
+    }
   </style>
   <link rel="stylesheet" type="text/css" href="skin.css">
 </head>
@@ -320,18 +338,12 @@
 
         _dragging.dataset.x1 = x;
         _dragging.dataset.y1 = y;
-
-        if (_file_dropping) {
-          // console.log(e.target);
-        }
       }
 
       _mouse.prevx = _mouse.x;
       _mouse.prevy = _mouse.y;
     });
     document.addEventListener("mouseup", function(e) {
-      if (_file_dropping && e.target.parentNode == _file_dropping) return;
-
       if (!_dragging) return;
 
       if (_dragging.classList.contains("curation")) {
