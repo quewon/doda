@@ -18,8 +18,11 @@
     .grabbing {
       cursor: grabbing;
     }
-    .grabbing * {
+    .grabbing *, .grabbing .menubutton {
       cursor: grabbing;
+    }
+    .grabbing .menubutton:hover {
+      background-color: inherit;
     }
     html, body {
       margin: 0;
@@ -58,6 +61,7 @@
       padding-right: .5rem;
       color: red;
       user-select: none;
+      -webkit-user-select: none;
       line-height: 1.1rem;
       height: 1.1rem;
       box-sizing: border-box;
@@ -157,6 +161,7 @@
       white-space: nowrap;
       box-sizing: border-box;
       user-select: none;
+      -webkit-user-select: none;
       cursor: pointer;
       cursor: grab;
       z-index: 1;
@@ -190,6 +195,7 @@
       width: 100%;
       box-sizing: border-box;
       user-select: none;
+      -webkit-user-select: none;
     }
     .filename.dropping {
       background: orange !important;

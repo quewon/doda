@@ -122,10 +122,6 @@ var _TEXT = {
     eng: "take apart",
     kor: "분해하기"
   },
-  "context_rename": {
-    eng: "rename",
-    kor: "이름 바꾸기"
-  },
   "context_photograph": {
     eng: "photograph",
     kor: "사진 찍기"

@@ -48,6 +48,7 @@ class file {
           let file = _files[this.dataset.id];
           let photo = file.createPhotograph();
           document.body.appendChild(photo);
+          selectWindow(photo);
         },
       },
       {
@@ -379,7 +380,8 @@ class file {
       if (_file_dropping.dataset.id == this.dataset.id) return;
       if (_files[this.dataset.id].isDescendantOf(_files[_file_dropping.dataset.id])) return;
 
-      if (e.target == this) {
+      console.log(e.target.tagName);
+      if (e.target.tagName != "A") {
         this.classList.add("droppable");
       } else {
         this.classList.remove("droppable");
@@ -985,18 +987,6 @@ class person extends curation {
 class machine extends curation {
   constructor(p) {
     super(p);
-    this.creator = p.creator || "doda";
-    if (this.creator == "doda") {
-      this.contextMenu.push({
-        name: TEXT("context_rename"),
-        function: function(e) {
-          let file = _files[this.dataset.id];
-          file.name = "debug";
-          file.folder.open();
-          console.log("rename it...");
-        }
-      });
-    }
   }
 }
 
