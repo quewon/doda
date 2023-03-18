@@ -290,13 +290,13 @@ class file {
     let b, f;
     if (to_replace) {
       let history = to_replace.dataset.history.split(".");
-      let index = to_replace.dataset.historyIndex;
+      let index = Number(to_replace.dataset.historyIndex);
 
-      folder.dataset.history = to_replace.dataset.history;
       if (index == history.length) {
         history.push(this.id);
       } else if (history[index] != this.id) {
         history[index] = this.id;
+        history.length = index + 1;
       }
 
       if (history.length > 0) {
